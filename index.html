@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプル2D ブロック崩しゲーム</title>
+    <style>
+        /* 画面全体のデザイン設定 */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222; /* 背景を暗いグレーに */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* ゲーム画面の外枠 */
+        #game-container {
+            text-align: center;
+        }
+
+        /* ゲームを描画するキャンバスの設定 */
+        canvas {
+            background: #111; /* ゲーム画面の背景を黒に */
+            display: block;
+            margin: 10px auto;
+            border: 4px solid #fff; /* 白い枠線をつける */
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        /* ゲームオーバーやクリア時のメッセージ用 */
+        #message {
+            font-size: 24px;
+            font-weight: bold;
+            height: 30px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>BLOCK BREAKER</h1>
+    <!-- ゲームを描画するためのエリア（横480px、縦320px） -->
+    <canvas id="myCanvas" width="480" height="320"></canvas>
+    <div id="message">左右の矢印キー、またはマウスでパドルを動かそう！</div>
+</div>
+
+<script>
+    // -------------------------------------------------------------
+    // 1. 基本設定と変数の準備
+    // -------------------------------------------------------------
+    const canvas = document.getElementById("myCanvas");
+    const ctx = canvas.getContext("2d"); // 2Dグラフィックを描画するための「筆」のようなもの
+    const messageEl = document.getElementById("message");
+
+    // ボールの設定
+    let x = canvas.width / 2;       // ボールの最初のX座標（真ん中）
+    let y = canvas.height - 30;     // ボールの最初のY座標（下の方）
+    let dx = 2;                     // ボールの横方向の移動速度
+    let dy = -2;                    // ボールの縦方向の移動速度（マイナスは上方向）
+    const ballRadius = 8;           // ボールの半径
+
+    // パドル（プレイヤーが動かす板）の設定
+    const paddleHeight = 10;        // パドルの高さ
+    const paddleWidth = 75;         // パドルの横幅
+    let paddleX = (canvas.width - paddleWidth) / 2; // パドルの最初のX座標（真ん中）
+
+    // キーボードの入力状態を記録する変数
+    let rightPressed = false;
+    let leftPressed = false;
+
+    // ブロック（壊す対象）の設定
+    const brickRowCount = 3;        // ブロックの行数（縦に何列並べるか）
+    const brickColumnCount = 5;     // ブロックの列数（横に何個並べるか）
+    const brickWidth = 75;          // ブロックの横幅
+    const brickHeight = 20;         // ブロックの高さ
+    const brickPadding = 10;        // ブロック同士のすき間
+    const brickOffsetTop = 30;      // 画面の上端からのすき間
+    const brickOffsetLeft = 30;     // 画面の左端からのすき間
+
+    // スコアとライフの設定
+    let score = 0;
+    let lives = 3;                  // 3回ミスしたらゲームオーバー
+    let gameOver = false;
+
+    // 二次元配列を使って、すべてのブロックの配置と状態を準備する
+    const bricks = [];
+    for (let c = 0; c < brickColumnCount; c++) {
+        bricks[c] = [];
+        for (let r = 0; r < brickRowCount; r++) {
+            // status: 1 はブロックが存在する、0 はすでに破壊されたことを表す
+            bricks[c][r] = { x: 0, y: 0, status: 1 };
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 2. イベントリスナー（操作の検知）
+    // -------------------------------------------------------------
+    // キーボードが押されたとき、離されたとき、マウスが動いたときの動きを登録
+    document.addEventListener("keydown", keyDownHandler, false);
+    document.addEventListener("keyup", keyUpHandler, false);
+    document.addEventListener("mousemove", mouseMoveHandler, false);
+
+    function keyDownHandler(e) {
+        if (e.key === "Right" || e.key === "ArrowRight") {
+            rightPressed = true;
+        } else if (e.key === "Left" || e.key === "ArrowLeft") {
+            leftPressed = true;
+        }
+    }
+
+    function keyUpHandler(e) {
+        if (e.key === "Right" || e.key === "ArrowRight") {
+            rightPressed = false;
+        } else if (e.key === "Left" || e.key === "ArrowLeft") {
+            leftPressed = false;
+        }
+    }
+
+    function mouseMoveHandler(e) {
+        // マウスの動きに合わせてパドルを動かす（画面内の座標を計算）
+        const relativeX = e.clientX - canvas.getBoundingClientRect().left;
+        if (relativeX > 0 && relativeX < canvas.width) {
+            paddleX = relativeX - paddleWidth / 2;
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 3. 衝突判定（ボールがブロックに当たったかどうかの計算）
+    // -------------------------------------------------------------
+    function collisionDetection() {
+        for (let c = 0; c < brickColumnCount; c++) {
+            for (let r = 0; r < brickRowCount; r++) {
+                const b = bricks[c][r];
+                if (b.status === 1) { // まだ壊れていないブロックだけを計算
+                    // ボールがブロックの範囲内に入ったかを判定
+                    if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
+                        dy = -dy; // ボールの上下の進行方向を反転
+                        b.status = 0; // ブロックを消す
+                        score++;      // スコアを加算
+                        
+                        // すべてのブロックを壊したかチェック
+                        if (score === brickRowCount * brickColumnCount) {
+                            messageEl.textContent = "おめでとう！ゲームクリア！";
+                            messageEl.style.color = "#4CAF50";
+                            gameOver = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 4. 各パーツの描画関数
+    // -------------------------------------------------------------
+    
+    // ボールを描く
+    function drawBall() {
+        ctx.beginPath();
+        ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+        ctx.fillStyle = "#0095DD"; // さわやかな青色
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    // パドルを描く
+    function drawPaddle() {
+        ctx.beginPath();
+        ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+        ctx.fillStyle = "#0095DD";
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    // ブロックを並べて描く
+    function drawBricks() {
+        for (let c = 0; c < brickColumnCount; c++) {
+            for (let r = 0; r < brickRowCount; r++) {
+                if (bricks[c][r].status === 1) {
+                    // 各ブロックの正しい描画位置（X座標、Y座標）を計算
+                    const brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
+                    const brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
+                    bricks[c][r].x = brickX;
+                    bricks[c][r].y = brickY;
+                    
+                    ctx.beginPath();
+                    ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                    ctx.fillStyle = "#FF5722"; // オレンジ色
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+        }
+    }
+
+    // スコアを画面の左上に描く
+    function drawScore() {
+        ctx.font = "16px sans-serif";
+        ctx.fillStyle = "#FFF";
+        ctx.fillText(`スコア: ${score}`, 8, 20);
+    }
+
+    // 残りライフを画面の右上に描く
+    function drawLives() {
+        ctx.font = "16px sans-serif";
+        ctx.fillStyle = "#FFF";
+        ctx.fillText(`ライフ: ${lives}`, canvas.width - 75, 20);
+    }
+
+    // -------------------------------------------------------------
+    // 5. メインループ（ゲームを動かす中心の処理）
+    // -------------------------------------------------------------
+    function draw() {
+        // 前のフレームで描かれた映像をいったん全部消す（これがないと残像が残る）
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 各要素を描画
+        drawBricks();
+        drawBall();
+        drawPaddle();
+        drawScore();
+        drawLives();
+        
+        // 衝突判定を行う
+        collisionDetection();
+
+        // もしクリアかゲームオーバーになっていたら、ここで処理を止める
+        if (gameOver) {
+            return; 
+        }
+
+        // --- ボールの壁跳ね返り処理 ---
+        // 左右の壁に当たったら、横の移動方向（dx）を反転
+        if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
+            dx = -dx;
+        }
+        // 上の壁に当たったら、縦の移動方向（dy）を反転
+        if (y + dy < ballRadius) {
+            dy = -dy;
+        } 
+        // 下の壁（プレイヤー側）に来たときの処理
+        else if (y + dy > canvas.height - ballRadius) {
+            // もしパドルの幅の中にボールがあれば、跳ね返す
+            if (x > paddleX && x < paddleX + paddleWidth) {
+                dy = -dy;
+                // 少しだけ速度を上げる演出（お好みで調整してください）
+                dy = dy * 1.05; 
+                dx = dx * 1.05;
+            } 
+            // パドルで受け止められなかった場合（ミス）
+            else {
+                lives--; // ライフを1減らす
+                if (!lives) {
+                    // ライフが0になったらゲームオーバー
+                    messageEl.textContent = "ゲームオーバー！もう一度挑戦しよう";
+                    messageEl.style.color = "#f44336";
+                    gameOver = true;
+                } else {
+                    // まだライフがあれば、ボールの位置をリセットして再開
+                    x = canvas.width / 2;
+                    y = canvas.height - 30;
+                    dx = 2;
+                    dy = -2;
+                    paddleX = (canvas.width - paddleWidth) / 2;
+                }
+            }
+        }
+
+        // --- パドルの移動処理 ---
+        // 右キーが押されていて、かつ画面右端を超えていなければ右へ移動
+        if (rightPressed && paddleX < canvas.width - paddleWidth) {
+            paddleX += 7;
+        }
+        // 左キーが押されていて、かつ画面左端を超えていなければ左へ移動
+        else if (leftPressed && paddleX > 0) {
+            paddleX -= 7;
+        }
+
+        // ボールを次の位置へ動かす
+        x += dx;
+        y += dy;
+
+        // このdraw関数を何度も高速で呼び出すことで、アニメーション（動画）にする
+        requestAnimationFrame(draw);
+    }
+
+    // ゲームをスタートさせる
+    draw();
+</script>
+
+</body>
+</html>
