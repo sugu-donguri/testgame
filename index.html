@@ -1,56 +1,123 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>TRPG ゲーム</title>
-  <!-- Supabase JS クライアント -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>簡単なダイスゲーム</title>
 </head>
 <body>
-  <h1>キャラ設定</h1>
-  <input id="charName" placeholder="名前">
-  <button onclick="saveCharacter()">保存</button>
-  
-  <h1>ダイスロール</h1>
-  <button onclick="rollDice()">1d6 ロール</button>
-  <div id="log"></div>
+  <h1>キャラクター作成</h1>
+
+  <label>
+    キャラクター名：
+    <input id="characterName" type="text">
+  </label>
+
+  <br><br>
+
+  <label>
+    筋力：
+    <input id="strength" type="number" value="10" min="1" max="100">
+  </label>
+
+  <br><br>
+
+  <button id="saveCharacter">キャラクターを保存</button>
+
+  <hr>
+
+  <h1>ダイス判定</h1>
+  <button id="rollDice">1d6を振る</button>
+
+  <h2>ログ</h2>
+  <div id="logs"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    // Supabase クライアント初期化
     const SUPABASE_URL = 'https://bmupitsejqwclwwwstkf.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_b4G9bU5ucW-oyXwnO--Gqg_zBekVQJw';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // キャラ保存
+    const db = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
+
+    let characterId = null;
+
+    const characterNameInput = document.getElementById("characterName");
+    const strengthInput = document.getElementById("strength");
+    const logsElement = document.getElementById("logs");
+
+    function showMessage(message) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = message;
+      logsElement.appendChild(paragraph);
+    }
+
     async function saveCharacter() {
-      const name = document.getElementById('charName').value;
-      const { data, error } = await supabase
-        .from('characters')
-        .insert({ 
-          user_id: 'user123', // 実際は認証 ID を使用
+      const name = characterNameInput.value.trim();
+      const strength = Number(strengthInput.value);
+
+      if (!name) {
+        alert("キャラクター名を入力してください。");
+        return;
+      }
+
+      const { data, error } = await db
+        .from("characters")
+        .insert({
+          user_id: "anonymous-test-user",
           name: name,
-          stats: { str: 10, dex: 12 }
-        });
-      
-      if (error) console.error('保存エラー:', error);
-      else alert('保存完了！');
+          stats: {
+            strength: strength
+          }
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        alert("保存に失敗しました：" + error.message);
+        return;
+      }
+
+      characterId = data.id;
+      showMessage(`${data.name}を保存しました。`);
     }
 
-    // ダイスロール
     async function rollDice() {
+      if (!characterId) {
+        alert("先にキャラクターを保存してください。");
+        return;
+      }
+
       const result = Math.floor(Math.random() * 6) + 1;
-      
-      // ログ保存
-      await supabase
-        .from('logs')
+      const description = `1d6の結果は ${result} でした。`;
+
+      const { error } = await db
+        .from("logs")
         .insert({
-          character_id: 'character-uuid',
+          character_id: characterId,
           dice_result: result,
-          description: `1d6 = ${result}`
+          description: description
         });
-      
-      document.getElementById('log').innerHTML += `<p>1d6 = ${result}</p>`;
+
+      if (error) {
+        console.error(error);
+        alert("ログ保存に失敗しました：" + error.message);
+        return;
+      }
+
+      showMessage(description);
     }
+
+    document
+      .getElementById("saveCharacter")
+      .addEventListener("click", saveCharacter);
+
+    document
+      .getElementById("rollDice")
+      .addEventListener("click", rollDice);
   </script>
 </body>
-</html>
