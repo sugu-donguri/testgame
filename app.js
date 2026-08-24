@@ -178,7 +178,7 @@ async function rollDice() {
     return;
   }
 
-  addLog(description);
+  await loadLogs();
 }
 async function loadCharacters() {
   const {
@@ -251,8 +251,48 @@ function selectCharacter() {
 
   status.textContent =
     `選択中：${selected.name}（筋力：${strength}）`;
+  
+  loadLogs();
 }
+async function loadLogs() {
+  const logsElement = document.getElementById("logs");
 
+  logsElement.innerHTML = "";
+
+  if (!characterId) {
+    logsElement.textContent =
+      "キャラクターを選択してください。";
+    return;
+  }
+
+  const { data, error } = await db
+    .from("logs")
+    .select("id, dice_result, description, created_at")
+    .eq("character_id", characterId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("ログ取得エラー:", error);
+    logsElement.textContent =
+      "ログの取得に失敗しました：" + error.message;
+    return;
+  }
+
+  if (data.length === 0) {
+    logsElement.textContent = "まだログはありません。";
+    return;
+  }
+
+  for (const log of data) {
+    addLog(formatLog(log));
+  }
+}
+function formatLog(log) {
+  const date = new Date(log.created_at);
+  const time = date.toLocaleString("ja-JP");
+
+  return `[${time}] ${log.description}`;
+}
 document
   .getElementById("saveCharacter")
   .addEventListener("click", saveCharacter);
