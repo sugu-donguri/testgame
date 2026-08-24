@@ -2,6 +2,97 @@ const db = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
+async function signUp() {
+  const email = document
+    .getElementById("signupEmail")
+    .value
+    .trim();
+
+  const password = document
+    .getElementById("signupPassword")
+    .value;
+
+  if (!email || !password) {
+    alert("メールアドレスとパスワードを入力してください。");
+    return;
+  }
+
+  const { data, error } = await db.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) {
+    console.error("登録エラー:", error);
+    alert("登録に失敗しました：" + error.message);
+    return;
+  }
+
+  if (data.session) {
+    alert("登録してログインしました。");
+  } else {
+    alert("登録しました。確認メールを確認してください。");
+  }
+
+  await updateAuthStatus();
+}
+async function signIn() {
+  const email = document
+    .getElementById("loginEmail")
+    .value
+    .trim();
+
+  const password = document
+    .getElementById("loginPassword")
+    .value;
+
+  if (!email || !password) {
+    alert("メールアドレスとパスワードを入力してください。");
+    return;
+  }
+
+  const { error } = await db.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    console.error("ログインエラー:", error);
+    alert("ログインに失敗しました：" + error.message);
+    return;
+  }
+
+  alert("ログインしました。");
+  await updateAuthStatus();
+}
+async function signOut() {
+  const { error } = await db.auth.signOut();
+
+  if (error) {
+    console.error("ログアウトエラー:", error);
+    alert("ログアウトに失敗しました：" + error.message);
+    return;
+  }
+
+  alert("ログアウトしました。");
+  await updateAuthStatus();
+}
+async function updateAuthStatus() {
+  const {
+    data: { user }
+  } = await db.auth.getUser();
+
+  const status = document.getElementById("authStatus");
+  const logoutButton = document.getElementById("logoutButton");
+
+  if (user) {
+    status.textContent = `ログイン中：${user.email}`;
+    logoutButton.hidden = false;
+  } else {
+    status.textContent = "未ログイン";
+    logoutButton.hidden = true;
+  }
+}
 
 let characterId = null;
 
@@ -84,3 +175,21 @@ document
 document
   .getElementById("rollDice")
   .addEventListener("click", rollDice);
+
+document
+  .getElementById("signupButton")
+  .addEventListener("click", signUp);
+
+document
+  .getElementById("loginButton")
+  .addEventListener("click", signIn);
+
+document
+  .getElementById("logoutButton")
+  .addEventListener("click", signOut);
+
+db.auth.onAuthStateChange((_event, _session) => {
+  updateAuthStatus();
+});
+
+updateAuthStatus();
