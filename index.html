@@ -43,9 +43,17 @@
 
   <p id="authStatus">未ログイン</p>
 </section>
+<section id="SelectSection">
+  <h2>キャラクター選択</h2>
   
+  <select id="characterSelect">
+    <option value="">キャラクターを選択してください</option>
+  </select>
+  <button id="reloadCharacters">一覧を更新</button>
+  <p id="selectedCharacterStatus">キャラクター未選択</p>
   <h1>キャラクター作成</h1>
-
+</section>
+<section id="ConfigSection">
   <label>
     キャラクター名：
     <input id="characterName" type="text">
@@ -62,13 +70,15 @@
 
   <button id="saveCharacter">キャラクターを保存</button>
 
-  <hr>
+</section>
+<section id="LogSection">
 
   <h1>ダイス判定</h1>
   <button id="rollDice">1d6を振る</button>
 
   <h2>ログ</h2>
   <div id="logs"></div>
+</section>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
