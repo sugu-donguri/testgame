@@ -150,10 +150,9 @@ async function saveCharacter() {
   characterId = data.id;
   addLog(`${data.name}を保存しました。`);
 }
-
 async function rollDice() {
   if (!characterId) {
-    alert("先にキャラクターを保存してください。");
+    alert("先にキャラクターを選択してください。");
     return;
   }
 
@@ -165,7 +164,7 @@ async function rollDice() {
     .insert({
       character_id: characterId,
       dice_result: result,
-      description: description
+      description: description,
     });
 
   if (error) {
@@ -269,8 +268,20 @@ document
   .getElementById("logoutButton")
   .addEventListener("click", signOut);
 
+document
+  .getElementById("characterSelect")
+  .addEventListener("change", selectCharacter);
+
+document
+  .getElementById("reloadCharacters")
+  .addEventListener("click", loadCharacters);
+
 db.auth.onAuthStateChange((_event, _session) => {
   updateAuthStatus();
+});
+db.auth.onAuthStateChange(async () => {
+  await updateAuthStatus();
+  await loadCharacters();
 });
 
 updateAuthStatus();
