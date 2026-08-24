@@ -120,10 +120,19 @@ async function saveCharacter() {
     return;
   }
 
+  const {
+  data: { user }
+} = await db.auth.getUser();
+
+if (!user) {
+  alert("先にログインしてください。");
+  return;
+}
+
   const { data, error } = await db
     .from("characters")
     .insert({
-      user_id: "anonymous-test-user",
+      user_id: user.id,
       name: name,
       stats: {
         strength: strength
