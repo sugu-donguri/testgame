@@ -223,6 +223,31 @@ async function loadCharacters() {
   characterId = null;
   status.textContent = "キャラクター未選択";
 }
+function selectCharacter() {
+  const select = document.getElementById("characterSelect");
+  const status = document.getElementById("selectedCharacterStatus");
+
+  characterId = select.value || null;
+
+  if (!characterId) {
+    status.textContent = "キャラクター未選択";
+    return;
+  }
+
+  const selected = characters.find(
+    (character) => character.id === characterId
+  );
+
+  if (!selected) {
+    status.textContent = "キャラクター未選択";
+    return;
+  }
+
+  const strength = selected.stats?.strength ?? "未設定";
+
+  status.textContent =
+    `選択中：${selected.name}（筋力：${strength}）`;
+}
 
 document
   .getElementById("saveCharacter")
