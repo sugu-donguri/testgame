@@ -1,5 +1,3 @@
 // config.js
-const CONFIG = {
-  SUPABASE_URL: 'https://your-project.supabase.co',
-  SUPABASE_ANON_KEY: 'your-anon-key'
-};
+const SUPABASE_URL = 'https://bmupitsejqwclwwwstkf.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_b4G9bU5ucW-oyXwnO--Gqg_zBekVQJw';
