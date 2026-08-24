@@ -95,6 +95,7 @@ async function updateAuthStatus() {
 }
 
 let characterId = null;
+let characters = [];
 
 const characterNameInput =
   document.getElementById("characterName");
@@ -174,6 +175,53 @@ async function rollDice() {
   }
 
   addLog(description);
+}
+async function loadCharacters() {
+  const {
+    data: { user },
+  } = await db.auth.getUser();
+
+  const select = document.getElementById("characterSelect");
+  const status = document.getElementById("selectedCharacterStatus");
+
+  if (!user) {
+    characters = [];
+    characterId = null;
+
+    select.innerHTML =
+      '<option value="">ログインしてください</option>';
+
+    status.textContent = "未ログイン";
+    return;
+  }
+
+  const { data, error } = await db
+    .from("characters")
+    .select("id, name, stats, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("キャラクター取得エラー:", error);
+    alert("キャラクター一覧の取得に失敗しました：" + error.message);
+    return;
+  }
+
+  characters = data;
+  select.innerHTML =
+    '<option value="">キャラクターを選択してください</option>';
+
+  for (const character of characters) {
+    const option = document.createElement("option");
+
+    option.value = character.id;
+    option.textContent = character.name;
+
+    select.appendChild(option);
+  }
+
+  characterId = null;
+  status.textContent = "キャラクター未選択";
 }
 
 document
