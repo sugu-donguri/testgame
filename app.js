@@ -147,8 +147,13 @@ async function saveCharacter() {
     return;
   }
 
-  characterId = data.id;
   addLog(`${data.name}を保存しました。`);
+  await loadCharacters();
+
+  const select = document.getElementById("characterSelect");
+  select.value = data.id;
+
+  selectCharacter();
 }
 async function rollDice() {
   if (!characterId) {
@@ -276,12 +281,10 @@ document
   .getElementById("reloadCharacters")
   .addEventListener("click", loadCharacters);
 
-db.auth.onAuthStateChange((_event, _session) => {
-  updateAuthStatus();
-});
 db.auth.onAuthStateChange(async () => {
   await updateAuthStatus();
   await loadCharacters();
 });
 
 updateAuthStatus();
+loadCharacters();
